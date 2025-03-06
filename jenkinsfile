@@ -1,0 +1,125 @@
+pipeline {
+    agent any
+
+    environment {
+        REGISTRY = 'docker.io'
+        REGISTRY_CREDENTIALS = credentials('docker-hub-credentials')
+        GIT_CREDENTIALS = credentials('github-credentials')
+        IMAGE_FRONTEND = 'gestion-etablissement-frontend'
+    }
+
+    stages {
+        stage('Checkout Code') {
+            steps {
+                git credentialsId: 'github-credentials', url: 'https://github.com/ton-utilisateur/ton-repo.git', branch: 'main'
+            }
+        }
+
+        stage('Build & Test Backend') {
+            parallel {
+                stage('ms-classes') {
+                    steps {
+                        dir('backend/ms-classes') {
+                            sh 'composer install --no-dev --optimize-autoloader'
+                            sh 'php artisan migrate --seed'
+                            sh 'php artisan test'
+                        }
+                    }
+                }
+                stage('ms-cours') {
+                    steps {
+                        dir('backend/ms-cours') {
+                            sh 'composer install --no-dev --optimize-autoloader'
+                            sh 'php artisan migrate --seed'
+                            sh 'php artisan test'
+                        }
+                    }
+                }
+                stage('ms-emplois') {
+                    steps {
+                        dir('backend/ms-emplois') {
+                            sh 'composer install --no-dev --optimize-autoloader'
+                            sh 'php artisan migrate --seed'
+                            sh 'php artisan test'
+                        }
+                    }
+                }
+                stage('ms-etudiants') {
+                    steps {
+                        dir('backend/ms-etudiants') {
+                            sh 'composer install --no-dev --optimize-autoloader'
+                            sh 'php artisan migrate --seed'
+                            sh 'php artisan test'
+                        }
+                    }
+                }
+                stage('ms-professeurs') {
+                    steps {
+                        dir('backend/ms-professeurs') {
+                            sh 'composer install --no-dev --optimize-autoloader'
+                            sh 'php artisan migrate --seed'
+                            sh 'php artisan test'
+                        }
+                    }
+                }
+            }
+        }
+
+        stage('Build & Test Frontend') {
+            steps {
+                dir('frontend') {
+                    sh 'npm install'
+                    sh 'npm run test'
+                }
+            }
+        }
+
+        stage('Code Quality Check') {
+            steps {
+                sh 'mvn sonar:sonar -Dsonar.projectKey=gestion-etablissement'
+            }
+        }
+
+        stage('Build Docker Images') {
+            parallel {
+                stage('Build ms-classes') {
+                    steps { sh "docker build -t $REGISTRY/ms-classes ./backend/ms-classes" }
+                }
+                stage('Build ms-cours') {
+                    steps { sh "docker build -t $REGISTRY/ms-cours ./backend/ms-cours" }
+                }
+                stage('Build ms-emplois') {
+                    steps { sh "docker build -t $REGISTRY/ms-emplois ./backend/ms-emplois" }
+                }
+                stage('Build ms-etudiants') {
+                    steps { sh "docker build -t $REGISTRY/ms-etudiants ./backend/ms-etudiants" }
+                }
+                stage('Build ms-professeurs') {
+                    steps { sh "docker build -t $REGISTRY/ms-professeurs ./backend/ms-professeurs" }
+                }
+                stage('Build Frontend') {
+                    steps { sh "docker build -t $REGISTRY/$IMAGE_FRONTEND ./frontend" }
+                }
+            }
+        }
+
+        stage('Push Docker Images') {
+            steps {
+                sh "docker login -u $REGISTRY_CREDENTIALS_USR -p $REGISTRY_CREDENTIALS_PSW $REGISTRY"
+                sh "docker push $REGISTRY/*"
+            }
+        }
+
+        stage('Deploy to Dev') {
+            steps {
+                sh "docker-compose up -d"
+            }
+        }
+    }
+
+    post {
+        always {
+            archiveArtifacts artifacts: '**/*.jar', fingerprint: true
+        }
+    }
+}

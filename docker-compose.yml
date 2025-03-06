@@ -1,0 +1,81 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:14
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: passer
+    ports:
+      - "5432:5432"
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    command: >
+      bash -c "
+      until pg_isready -h localhost -p 5432; do sleep 2; done;
+      psql -U postgres -c 'CREATE DATABASE ms_classes;'
+      psql -U postgres -c 'CREATE DATABASE ms_cours;'
+      psql -U postgres -c 'CREATE DATABASE ms_emploidutemps;'
+      psql -U postgres -c 'CREATE DATABASE ms_etudiants;'
+      psql -U postgres -c 'CREATE DATABASE ms_professeurs;'
+      "
+
+  ms-classes:
+    build: ./backend/ms-classes
+    ports:
+      - "8001:8000"
+    env_file:
+      - ./backend/ms-classes/.env
+    depends_on:
+      - postgres
+
+  ms-cours:
+    build: ./backend/ms-cours
+    ports:
+      - "8002:8000"
+    env_file:
+      - ./backend/ms-cours/.env
+    depends_on:
+      - postgres
+
+  ms-emplois:
+    build: ./backend/ms-emplois
+    ports:
+      - "8003:8000"
+    env_file:
+      - ./backend/ms-emplois/.env
+    depends_on:
+      - postgres
+
+  ms-etudiants:
+    build: ./backend/ms-etudiants
+    ports:
+      - "8004:8000"
+    env_file:
+      - ./backend/ms-etudiants/.env
+    depends_on:
+      - postgres
+
+  ms-professeurs:
+    build: ./backend/ms-professeurs
+    ports:
+      - "8005:8000"
+    env_file:
+      - ./backend/ms-professeurs/.env
+    depends_on:
+      - postgres
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "4200:4200"
+    depends_on:
+      - ms-classes
+      - ms-cours
+      - ms-emplois
+      - ms-etudiants
+      - ms-professeurs
+
+volumes:
+  pg_data:
