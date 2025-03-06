@@ -4,14 +4,13 @@ pipeline {
     environment {
         REGISTRY = 'docker.io'
         REGISTRY_CREDENTIALS = credentials('docker-hub-credentials')
-        GIT_CREDENTIALS = credentials('github-credentials')
         IMAGE_FRONTEND = 'gestion-etablissement-frontend'
     }
 
     stages {
         stage('Checkout Code') {
-            steps {
-                git credentialsId: 'github-credentials', url: 'https://github.com/ton-utilisateur/ton-repo.git', branch: 'main'
+             steps {
+                git branch: 'main', url: 'https://github.com/maammadoubah-10/pipelineDevops.git'
             }
         }
 
@@ -74,10 +73,6 @@ pipeline {
             }
         }
 
-        stage('Code Quality Check') {
-            steps {
-                sh 'mvn sonar:sonar -Dsonar.projectKey=gestion-etablissement'
-            }
         }
 
         stage('Build Docker Images') {
